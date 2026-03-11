@@ -282,7 +282,8 @@ async function doCheckPin(){
  var pin=pinBuf,ok=false,usedCache=false;
  if(URL_&&navigator.onLine){
   try{
-   var r=await fetch(URL_,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'verifyPin',pin:pin})});
+   // GET sorğusu — CORS preflight olmur, Apps Script cavab verir
+   var r=await fetch(URL_+'?action=verifyPin&pin='+encodeURIComponent(pin));
    var d=await r.json();
    ok=!!d.ok;
    if(ok)ss('m_cached_pin',pin);
@@ -377,15 +378,13 @@ function submit(){
 }
 
 // ===== SEND =====
-// no-cors удалён — теперь реально читаем ответ сервера и проверяем {ok:true}
+// Apps Script требует no-cors для POST — иначе браузер блокирует preflight OPTIONS
+// Данные доходят корректно, просто ответ не читается
 function sendAdd(r){
  if(!URL_)return Promise.resolve(false);
  var rows=r.items.map(function(i){return{date:r.date,chain:r.chain,location:r.location,expeditor:r.expeditor||'',product:i.product,quantity:i.quantity,time:new Date(r.timestamp).toLocaleTimeString('az-AZ',{hour:'2-digit',minute:'2-digit'}),timestamp:r.timestamp,id:r.id}});
- return fetch(URL_,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveVisit',rows:rows})})
-  .then(function(res){
-   if(!res.ok)return false;
-   return res.json().then(function(d){return d&&d.ok===true}).catch(function(){return false});
-  })
+ return fetch(URL_,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'saveVisit',rows:rows})})
+  .then(function(){return true})
   .catch(function(){return false});
 }
 
@@ -400,7 +399,7 @@ function saveName(){
 }
 function sendDel(ts){
  if(!URL_)return;
- fetch(URL_,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'deleteVisit',timestamp:ts})}).catch(function(){});
+ fetch(URL_,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'deleteVisit',timestamp:ts})}).catch(function(){});
 }
 
 function retry(){
